@@ -1,7 +1,37 @@
 #!/bin/bash
 
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -d|--dir)
+    DIR="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
 # Create temp directory
-TMPDIR=$(mktemp -d)
+if [[ -z $DIR ]]
+then
+	# Use /tmp by default
+	TMPDIR=$(mktemp -d)
+else
+	# Use command line argument instead of /tmp
+	mkdir -p "$DIR"
+	TMPDIR=$(mktemp -d --tmpdir="$DIR")
+fi
+
+echo $TMPDIR
+exit 0
 
 # System info
 mkdir -p $TMPDIR/systeminfo
