@@ -30,6 +30,9 @@ else
 	TMPDIR=$(mktemp -d --tmpdir="$DIR")
 fi
 
+echo "Starting Rancher Log Collector"
+
+echo -n "Collecting System info... "
 # System info
 mkdir -p $TMPDIR/systeminfo
 hostname > $TMPDIR/systeminfo/hostname 2>&1
@@ -66,7 +69,9 @@ if [ -f /etc/redhat-release ]; then
   getenforce > $TMPDIR/systeminfo/rhel-getenforce 2>&1
   fi
 fi
+echo "Done"
 
+echo -n "Collecting Docker info... "
 # Docker
 mkdir -p $TMPDIR/docker
 docker info > $TMPDIR/docker/dockerinfo 2>&1
@@ -75,6 +80,9 @@ docker stats -a --no-stream > $TMPDIR/docker/dockerstats 2>&1
 if [ -f /etc/docker/daemon.json ]; then
   cat /etc/docker/daemon.json > $TMPDIR/docker/etcdockerdaemon.json
 fi
+echo "Done"
+
+echo -n "Collecting Networking info... "
 # Networking
 mkdir -p $TMPDIR/networking
 iptables-save > $TMPDIR/networking/iptablessave 2>&1
@@ -86,11 +94,15 @@ fi
 if $(command -v ifconfig >/dev/null 2>&1); then
   ifconfig -a > $TMPDIR/networking/ifconfiga
 fi
+echo "Done"
 
+echo -n "Collecting System logs... "
 # System logging
 mkdir -p $TMPDIR/systemlogs
 cp /var/log/syslog* /var/log/messages* /var/log/kern* /var/log/docker* /var/log/system-docker* /var/log/audit/* $TMPDIR/systemlogs 2>/dev/null
+echo "Done"
 
+echo -n "Collecting Rancher Server info and logs... "
 # Rancher logging
 # Discover any server or agent running
 mkdir -p $TMPDIR/rancher/containerinspect
@@ -107,7 +119,9 @@ for RANCHERAGENT in $RANCHERAGENTS; do
   docker inspect $RANCHERAGENT > $TMPDIR/rancher/containerinspect/agent-$RANCHERAGENT 2>&1
   docker logs -t $RANCHERAGENT > $TMPDIR/rancher/containerlogs/agent-$RANCHERAGENT 2>&1
 done
+echo "Done"
 
+echo -n "Collecting K8s Container info and logs... "
 # K8s Docker container logging
 mkdir -p $TMPDIR/k8s/containerlogs
 mkdir -p $TMPDIR/k8s/containerinspect
@@ -118,7 +132,9 @@ for KUBECONTAINER in "${KUBECONTAINERS[@]}"; do
 	  docker logs -t $KUBECONTAINER > $TMPDIR/k8s/containerlogs/$KUBECONTAINER 2>&1
   fi
 done
+echo "Done"
 
+echo -n "Collecting System Pods info and logs... "
 # System pods
 mkdir -p $TMPDIR/k8s/podlogs
 mkdir -p $TMPDIR/k8s/podinspect
@@ -130,7 +146,9 @@ for SYSTEMNAMESPACE in "${SYSTEMNAMESPACES[@]}"; do
     docker logs -t $CONTAINER > $TMPDIR/k8s/podlogs/$CONTAINER 2>&1
   done
 done
+echo "Done"
 
+echo -n "Collecting K8s internal certs... "
 # K8s directory state
 mkdir -p $TMPDIR/k8s/directories
 if [ -d /opt/rke/etc/kubernetes/ssl ]; then
@@ -152,7 +170,9 @@ elif [ -d /etc/kubernetes/ssl ]; then
     openssl x509 -in $CERT -text -noout > $TMPDIR/k8s/certs/$(basename $CERT) 2>&1
   done
 fi
+echo "Done"
 
+echo -n "Collecting etcd info and logs... "
 # etcd
 mkdir -p $TMPDIR/etcd
 # /var/lib/etcd contents
@@ -161,18 +181,24 @@ if [ -d /var/lib/etcd ]; then
 elif [ -d /opt/rke/var/lib/etcd ]; then
   find /opt/rke/var/lib/etcd -type f -exec ls -la {} \; > $TMPDIR/etcd/findoptrkevarlibetcd 2>&1
 fi
+echo "Done"
 
+echo -n "Collecting nginx info and logs... "
 # nginx-proxy
 if docker inspect nginx-proxy >/dev/null 2>&1; then
   mkdir -p $TMPDIR/k8s/nginx-proxy
   docker exec nginx-proxy cat /etc/nginx/nginx.conf > $TMPDIR/k8s/nginx-proxy/nginx.conf 2>&1
 fi
+echo "Done"
 
+echo -n "Collecting rke info... "
 # /opt/rke contents
 if [ -d /opt/rke/etcd-snapshots ]; then
   find /opt/rke/etcd-snapshots -type f -exec ls -la {} \; > $TMPDIR/etcd/findoptrkeetcdsnaphots 2>&1
 fi
+echo "Done"
 
+echo -n "Bundling up files and logs... "
 FILENAME="$(hostname)-$(date +'%Y-%m-%d_%H_%M_%S').tar"
 tar cf /tmp/$FILENAME -C ${TMPDIR}/ .
 
@@ -180,6 +206,7 @@ if $(command -v gzip >/dev/null 2>&1); then
   gzip /tmp/${FILENAME}
   FILENAME="${FILENAME}.gz"
 fi
+echo "Done"
 
 echo "Created /tmp/${FILENAME}"
 echo "You can now remove ${TMPDIR}"
