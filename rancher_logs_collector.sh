@@ -30,9 +30,6 @@ else
 	TMPDIR=$(mktemp -d --tmpdir="$DIR")
 fi
 
-echo $TMPDIR
-exit 0
-
 # System info
 mkdir -p $TMPDIR/systeminfo
 hostname > $TMPDIR/systeminfo/hostname 2>&1
